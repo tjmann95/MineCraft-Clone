@@ -49,14 +49,6 @@ def draw_cube(x, y, z):
             glVertex3fv(new_vertices[each_vertex])
     glEnd()
 
-def get_player_dir(mouseX, mouseY):
-    global WINDOW_WIDTH, WINDOW_HEIGHT
-
-    normalized_x = 2*(mouseX - WINDOW_WIDTH/2)/WINDOW_WIDTH
-    normalized_y = 2*(mouseY - WINDOW_HEIGHT/2)/WINDOW_HEIGHT
-
-    return (normalized_x, -normalized_y)
-
 def main():
     global WINDOW_WIDTH, WINDOW_HEIGHT
 
@@ -72,18 +64,11 @@ def main():
     move_x = 0
     move_z = 0
 
-    player_dir = (0, 0)
-
-    #glRotatef(30, 1, 0, 0)
-
     while True:
 
         for event in pygame.event.get():
             if event.type == QUIT:
                 terminate()
-            elif event.type == MOUSEMOTION:
-                mouse_x, mouse_y = event.pos
-                print(get_player_dir(mouse_x, mouse_y))
             elif event.type == KEYDOWN:
                 if event.key == K_w:
                     move_z = move_speed
@@ -102,14 +87,22 @@ def main():
 
         glTranslate(move_x, 0, move_z)
 
+        x = glGetDoublev(GL_MODELVIEW_MATRIX)
+
+        player_cam_x = x[3][0]
+        player_cam_y = x[3][1]
+        player_cam_z = x[3][2]
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        for x in range (-1, 2):
+        for x in range(-1, 2):
             for y in range(-1, 2):
                 draw_cube(x, y, 0)
 
         pygame.display.flip()
         fps_clock.tick(FPS)
+
+
 
 def terminate():
     pygame.quit()
