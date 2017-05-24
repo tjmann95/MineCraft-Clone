@@ -1,6 +1,6 @@
 #version 330
 in vec3 ourColor;
-in vec2 TexCoord;
+in vec2 texCoordsOut;
 
 out vec4 color;
 
@@ -9,5 +9,5 @@ uniform sampler2D faceTexture;
 
 void main()
 {
-    color = mix(texture(woodTexture, TexCoord), texture(faceTexture, TexCoord), 0.2);
+    color = mix(texture(woodTexture, texCoordsOut), texture(faceTexture, texCoordsOut), 0.2);
 }
