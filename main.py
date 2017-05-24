@@ -7,6 +7,7 @@ from pygame.locals import *
 from OpenGL.GL import *
 from PIL import Image
 
+
 # vertices = (
 #     #right
 #     (.5, .5, .5,
@@ -115,13 +116,16 @@ def main():
     face = Image.open("resources/awesomeface.jpg")
     face.load()
 
+    shader.use()
+
     wood_data = list(wood.getdata())
     wood_data = numpy.array(wood_data, dtype=numpy.uint8)
-    face_data = list(wood.getdata())
+    face_data = list(face.getdata())
     face_data = numpy.array(face_data, dtype=numpy.uint8)
 
-    # Wood texture
     texture1 = GLuint(0)
+    texture2 = GLuint(0)
+    # Wood texture
     glGenTextures(1, texture1)
     glBindTexture(GL_TEXTURE_2D, texture1)
 
@@ -142,7 +146,6 @@ def main():
     glBindTexture(GL_TEXTURE_2D, 0)
 
     # Face texture
-    texture2 = GLuint(0)
     glGenTextures(1, texture2)
     glBindTexture(GL_TEXTURE_2D, texture2)
 
@@ -162,6 +165,13 @@ def main():
     glGenerateMipmap(GL_TEXTURE_2D)
     glBindTexture(GL_TEXTURE_2D, 0)
 
+    glActiveTexture(GL_TEXTURE0)
+    glBindTexture(GL_TEXTURE_2D, texture1)
+    glUniform1i(glGetUniformLocation(shader.shader_program, "woodTexture"), 0)
+    glActiveTexture(GL_TEXTURE1)
+    glBindTexture(GL_TEXTURE_2D, texture2)
+    glUniform1i(glGetUniformLocation(shader.shader_program, "faceTexture"), 1)
+
     while True:
 
         for event in pygame.event.get():
@@ -171,17 +181,8 @@ def main():
                 if event.key == K_ESCAPE:
                     terminate()
 
-        glClearColor(0.4667, 0.7373, 1., 1.0)
+        glClearColor(0.4667, 0.7373, 1.0, 1.0)
         glClear(GL_COLOR_BUFFER_BIT)
-
-        shader.use()
-
-        glActiveTexture(GL_TEXTURE0)
-        glBindTexture(GL_TEXTURE_2D, texture2)
-        glUniform1i(glGetUniformLocation(shader.compile_shader("vertex.vs", "fragment.fs"), "faceTexture"), 0)
-        glActiveTexture(GL_TEXTURE1)
-        glBindTexture(GL_TEXTURE_2D, texture1)
-        glUniform1i(glGetUniformLocation(shader.compile_shader("vertex.vs", "fragment.fs"), "woodTexture"), 1)
 
         glBindVertexArray(vao)
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, None)
