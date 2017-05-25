@@ -9,7 +9,9 @@ from PIL import Image
 from pyrr import Matrix44
 from pyrr import Vector3
 from pyrr import Quaternion
-from math import radians
+from pyrr import vector
+from pyrr import vector3
+from math import radians, sin, cos
 
 vertices = (
     -0.5,   -0.5,   -0.5, 0.0, 0.0,
@@ -55,18 +57,18 @@ vertices = (
     -0.5,    0.5,   -0.5, 0.0, 1.0
 )
 
-block_positions = (
-    Vector3([0., 0., 0.]),
-    Vector3([2., 5., -15.]),
-    Vector3([-1.5, -2.2, -2.5]),
-    Vector3([-3.8, -2., -12.3]),
-    Vector3([2.4, -.4, -3.5]),
-    Vector3([-1.7, 3., -7.5]),
-    Vector3([1.3, -2., -2.5]),
-    Vector3([1.5, 2., -2.5]),
-    Vector3([1.5, .2, -1.5]),
-    Vector3([-1.3, 1., -1.5])
-)
+block_positions = [
+    [0., 0., 0.],
+    [2., 5., -15.],
+    [-1.5, -2.2, -2.5],
+    [-3.8, -2., -12.3],
+    [2.4, -.4, -3.5],
+    [-1.7, 3., -7.5],
+    [1.3, -2., -2.5],
+    [1.5, 2., -2.5],
+    [1.5, .2, -1.5],
+    [-1.3, 1., -1.5]
+]
 
 # vertices = (
 #     # Vertex       Color          Texture Coords
@@ -85,6 +87,32 @@ vertices = np.array(vertices, dtype=np.float32)
 # indices = np.array(indices, dtype=np.uint32)
 
 
+def lookAt(position, target, up=Vector3([0., 1., 0.])):
+    direction = vector.normalise(position - target)
+    direction = np.array(direction, dtype=np.float32)
+    up = np.array(up, dtype=np.float32)
+    camera_right = vector.normalise(vector3.cross(up, direction))
+    camera_up = vector.normalise(vector3.cross(direction, camera_right))
+
+    translation = Matrix44.identity()
+    translation[3][0] = -position[0]
+    translation[3][1] = -position[1]
+    translation[3][2] = -position[2]
+
+    rotation = Matrix44.identity()
+    rotation[0][0] = camera_right[0]
+    rotation[1][0] = camera_right[1]
+    rotation[2][0] = camera_right[2]
+    rotation[0][1] = camera_up[0]
+    rotation[1][1] = camera_up[1]
+    rotation[2][1] = camera_up[2]
+    rotation[0][2] = direction[0]
+    rotation[1][2] = direction[1]
+    rotation[2][2] = direction[2]
+
+    return np.array(translation * rotation, dtype=np.float32)
+
+
 def main():
     pygame.init()
 
@@ -95,8 +123,12 @@ def main():
     clock = pygame.time.Clock()
     running = True
 
-    pygame.display.set_mode([window_width, window_height], DOUBLEBUF | OPENGL)
+    pygame.display.set_mode([window_width, window_height], DOUBLEBUF | OPENGL | RESIZABLE)
     pygame.display.set_caption("Minecraft Clone")
+    window_width, window_height = pygame.display.get_surface().get_size()
+    #pygame.event.set_grab(True)
+    pygame.mouse.set_visible(False)
+
     glViewport(0, 0, window_width, window_height)
     glEnable(GL_DEPTH_TEST)
 
@@ -211,21 +243,38 @@ def main():
     model_matrix = model_matrix_base * model_orientation
     model_matrix = np.array(model_matrix, dtype=np.float32)
 
-    # View Matrix
-    view_translation = Vector3()
-    view_matrix_base = Matrix44.from_scale(Vector3([1., 1., 1.]))
-
-    view_translation += [0., 0., -3.0]
-    view_translation = Matrix44.from_translation(view_translation)
-
-    view_matrix = view_matrix_base * view_translation
-    view_matrix = np.array(view_matrix, dtype=np.float32)
-
     # Projection Matrix
     projection_matrix = Matrix44.perspective_projection(45.0, aspect_ratio, .1, 100.)
     projection_matrix = np.array(projection_matrix, dtype=np.float32)
 
+    # Camera
+    camera_position = Vector3([0., 0., 3.])
+    camera_front = Vector3([0., 0., -1.])
+
+    last_frame = 0.0
+    mouse_sensitivity = .5
+    last_x = window_width / 2
+    last_y = window_height / 2
+    pitch = 0
+    yaw = 0
+
     while running:
+        current_frame = pygame.time.get_ticks()
+        delta_time = current_frame - last_frame
+        last_frame = current_frame
+
+        camera_speed = .01 * delta_time
+
+        keys_pressed = pygame.key.get_pressed()
+
+        if keys_pressed[K_w]:
+            camera_position += camera_speed * camera_front
+        if keys_pressed[K_s]:
+            camera_position -= camera_speed * camera_front
+        if keys_pressed[K_a]:
+            camera_position -= vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
+        if keys_pressed[K_d]:
+            camera_position += vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -233,6 +282,31 @@ def main():
             elif event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     running = False
+            elif event.type == MOUSEMOTION:
+                mouseX, mouseY = event.pos
+                x_offset = mouseX - last_x
+                y_offset = last_y - mouseY
+
+                last_x = mouseX
+                last_y = mouseY
+
+                x_offset *= mouse_sensitivity
+                y_offset *= mouse_sensitivity
+
+        yaw += x_offset * mouse_sensitivity
+        pitch += y_offset * mouse_sensitivity
+        print(x_offset, y_offset)
+
+        if pitch > 89.0:
+            pitch = 89.0
+        if pitch < -89.0:
+            pitch = -89.0
+
+        direction_x = cos(radians(pitch)) * cos(radians(yaw))
+        direction_y = sin(radians(pitch))
+        direction_z = cos(radians(pitch)) * sin(radians(yaw))
+        camera_front = vector.normalise(np.array([direction_x, direction_y, direction_z], dtype=np.float32))
+        camera_front = Vector3(camera_front)
 
         glClearColor(0.4667, 0.7373, 1., 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -241,15 +315,12 @@ def main():
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, wood_texture)
         glUniform1i(glGetUniformLocation(shader.shader_program, "woodTexture"), 0)
-        # glActiveTexture(GL_TEXTURE1)
-        # glBindTexture(GL_TEXTURE_2D, face_texture)
-        # glUniform1i(glGetUniformLocation(shader.shader_program, "faceTexture"), 1)
 
         glBindVertexArray(vao)
 
         # Transformations and drawing
-        rotation_x = Quaternion.from_x_rotation(.001 * pygame.time.get_ticks())
-        rotation_y = Quaternion.from_y_rotation(.001 * pygame.time.get_ticks())
+        rotation_x = Quaternion.from_x_rotation(0)
+        rotation_y = Quaternion.from_y_rotation(0)
         rotation = rotation_x * rotation_y
         orientation = rotation * orientation_base
 
@@ -259,12 +330,23 @@ def main():
 
         glUniformMatrix4fv(transform_location, 1, GL_FALSE, matrix)
 
+        # Camera
+        view_matrix = lookAt(camera_position, camera_position + camera_front)
+
         # MVP
         glUniformMatrix4fv(model_location, 1, GL_FALSE, model_matrix)
         glUniformMatrix4fv(view_location, 1, GL_FALSE, view_matrix)
         glUniformMatrix4fv(projection_location, 1, GL_FALSE, projection_matrix)
 
-        glDrawArrays(GL_TRIANGLES, 0, 36)
+        for each_block in range(0, len(block_positions)):
+            translation = Vector3()
+            translation += block_positions[each_block]
+            translation = Matrix44.from_translation(translation)
+            block_translation_matrix = Matrix44.from_scale(Vector3([1., 1., 1.])) * translation
+            block_translation_matrix = np.array(block_translation_matrix, dtype=np.float32)
+            glUniformMatrix4fv(model_location, 1, GL_FALSE, block_translation_matrix)
+
+            glDrawArrays(GL_TRIANGLES, 0, 36)
 
         glBindVertexArray(0)
 
