@@ -262,19 +262,40 @@ def main():
         current_frame = pygame.time.get_ticks()
         delta_time = current_frame - last_frame
         last_frame = current_frame
+        last_cam_pos = 0
 
         camera_speed = .01 * delta_time
 
         keys_pressed = pygame.key.get_pressed()
 
+        # Keyboard
         if keys_pressed[K_w]:
             camera_position += camera_speed * camera_front
+            camera_position[1] = last_cam_pos
         if keys_pressed[K_s]:
             camera_position -= camera_speed * camera_front
+            camera_position[1] = last_cam_pos
         if keys_pressed[K_a]:
             camera_position -= vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
         if keys_pressed[K_d]:
             camera_position += vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
+        if keys_pressed[K_SPACE]:
+            camera_position[1] += camera_speed
+            last_cam_pos = camera_position[1]
+        if keys_pressed[K_LSHIFT]:
+            camera_position[1] -= camera_speed
+            last_cam_pos = camera_position[1]
+
+        # Mouse
+        mouse_x, mouse_y = pygame.mouse.get_pos()
+        x_offset = mouse_x - last_x
+        y_offset = last_y - mouse_y
+
+        last_x = mouse_x
+        last_y = mouse_y
+
+        x_offset *= mouse_sensitivity
+        y_offset *= mouse_sensitivity
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -282,20 +303,9 @@ def main():
             elif event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     running = False
-            elif event.type == MOUSEMOTION:
-                mouseX, mouseY = event.pos
-                x_offset = mouseX - last_x
-                y_offset = last_y - mouseY
-
-                last_x = mouseX
-                last_y = mouseY
-
-                x_offset *= mouse_sensitivity
-                y_offset *= mouse_sensitivity
 
         yaw += x_offset * mouse_sensitivity
         pitch += y_offset * mouse_sensitivity
-        print(x_offset, y_offset)
 
         if pitch > 89.0:
             pitch = 89.0
