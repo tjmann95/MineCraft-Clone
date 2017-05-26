@@ -12,6 +12,7 @@ from pyrr import Quaternion
 from pyrr import vector
 from pyrr import vector3
 from math import radians, sin, cos
+from Camera import Camera
 
 vertices = (
     -0.5,   -0.5,   -0.5, 0.0, 0.0,
@@ -73,30 +74,30 @@ block_positions = [
 vertices = np.array(vertices, dtype=np.float32)
 
 
-def lookAt(position, target, up=Vector3([0., 1., 0.])):
-    direction = vector.normalise(position - target)
-    direction = np.array(direction, dtype=np.float32)
-    up = np.array(up, dtype=np.float32)
-    camera_right = vector.normalise(vector3.cross(up, direction))
-    camera_up = vector.normalise(vector3.cross(direction, camera_right))
-
-    translation = Matrix44.identity()
-    translation[3][0] = -position[0]
-    translation[3][1] = -position[1]
-    translation[3][2] = -position[2]
-
-    rotation = Matrix44.identity()
-    rotation[0][0] = camera_right[0]
-    rotation[1][0] = camera_right[1]
-    rotation[2][0] = camera_right[2]
-    rotation[0][1] = camera_up[0]
-    rotation[1][1] = camera_up[1]
-    rotation[2][1] = camera_up[2]
-    rotation[0][2] = direction[0]
-    rotation[1][2] = direction[1]
-    rotation[2][2] = direction[2]
-
-    return np.array(translation * rotation, dtype=np.float32)
+# def lookAt(position, target, up=Vector3([0., 1., 0.])):
+#     direction = vector.normalise(position - target)
+#     direction = np.array(direction, dtype=np.float32)
+#     up = np.array(up, dtype=np.float32)
+#     camera_right = vector.normalise(vector3.cross(up, direction))
+#     camera_up = vector.normalise(vector3.cross(direction, camera_right))
+#
+#     translation = Matrix44.identity()
+#     translation[3][0] = -position[0]
+#     translation[3][1] = -position[1]
+#     translation[3][2] = -position[2]
+#
+#     rotation = Matrix44.identity()
+#     rotation[0][0] = camera_right[0]
+#     rotation[1][0] = camera_right[1]
+#     rotation[2][0] = camera_right[2]
+#     rotation[0][1] = camera_up[0]
+#     rotation[1][1] = camera_up[1]
+#     rotation[2][1] = camera_up[2]
+#     rotation[0][2] = direction[0]
+#     rotation[1][2] = direction[1]
+#     rotation[2][2] = direction[2]
+#
+#     return np.array(translation * rotation, dtype=np.float32)
 
 
 def main():
@@ -196,55 +197,66 @@ def main():
     projection_matrix = Matrix44.perspective_projection(45.0, aspect_ratio, .1, 100.)
     projection_matrix = np.array(projection_matrix, dtype=np.float32)
 
-    # Camera
-    camera_position = Vector3([0., 0., 3.])
-    camera_front = Vector3([0., 0., -1.])
+    camera = Camera(window_width, window_height, view_location)
 
-    last_frame = 0.0
-    mouse_sensitivity = .5
-    last_x = window_width / 2
-    last_y = window_height / 2
-    pitch = 0
-    yaw = 0
+    # Camera
+    # camera_position = Vector3([0., 0., 6.])
+    # camera_front = Vector3([0., 0., -1.])
+    #
+    # last_frame = 0.0
+    # mouse_sensitivity = .5
+    # pitch = 0
+    # yaw = 0
 
     while running:
-        current_frame = pygame.time.get_ticks()
-        delta_time = current_frame - last_frame
-        last_frame = current_frame
-        last_cam_pos = 0
-
-        camera_speed = .01 * delta_time
+        # current_frame = pygame.time.get_ticks()
+        # delta_time = current_frame - last_frame
+        # last_frame = current_frame
+        # last_cam_y = camera_position[1]
+        #
+        # camera_speed = .01 * delta_time
 
         keys_pressed = pygame.key.get_pressed()
 
-        # Keyboard
-        if keys_pressed[K_w]:
-            camera_position += camera_speed * camera_front
-            camera_position[1] = last_cam_pos
-        if keys_pressed[K_s]:
-            camera_position -= camera_speed * camera_front
-            camera_position[1] = last_cam_pos
-        if keys_pressed[K_a]:
-            camera_position -= vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
-        if keys_pressed[K_d]:
-            camera_position += vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
         if keys_pressed[K_SPACE]:
-            camera_position[1] += camera_speed
-            last_cam_pos = camera_position[1]
+            camera.move_camera("UP")
         if keys_pressed[K_LSHIFT]:
-            camera_position[1] -= camera_speed
-            last_cam_pos = camera_position[1]
+            camera.move_camera("DOWN")
+        if keys_pressed[K_w]:
+            camera.move_camera("FORWARD")
+        if keys_pressed[K_s]:
+            camera.move_camera("BACK")
+        if keys_pressed[K_a]:
+            camera.move_camera("LEFT")
+        if keys_pressed[K_d]:
+            camera.move_camera("RIGHT")
+
+        camera.point_camera()
+
+        # Keyboard
+        # if keys_pressed[K_SPACE]:
+        #     camera_position[1] += camera_speed
+        #     last_cam_y = camera_position[1]
+        # if keys_pressed[K_LSHIFT]:
+        #     camera_position[1] -= camera_speed
+        #     last_cam_y = camera_position[1]
+        # if keys_pressed[K_w]:
+        #     camera_position += camera_speed * camera_front
+        # if keys_pressed[K_s]:
+        #     camera_position -= camera_speed * camera_front
+        # if keys_pressed[K_a]:
+        #     camera_position -= vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
+        # if keys_pressed[K_d]:
+        #     camera_position += vector.normalise(vector3.cross(np.array(camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
+        # camera_position[1] = last_cam_y
 
         # Mouse
-        mouse_x, mouse_y = pygame.mouse.get_pos()
-        x_offset = mouse_x - last_x
-        y_offset = last_y - mouse_y
-
-        last_x = mouse_x
-        last_y = mouse_y
-
-        x_offset *= mouse_sensitivity
-        y_offset *= mouse_sensitivity
+        # mouse = pygame.mouse.get_rel()
+        # x_offset = mouse[0]
+        # y_offset = mouse[1]
+        #
+        # x_offset *= mouse_sensitivity
+        # y_offset *= mouse_sensitivity
 
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -253,21 +265,19 @@ def main():
                 if event.key == K_ESCAPE:
                     running = False
 
-        yaw += x_offset * mouse_sensitivity
-        pitch += y_offset * mouse_sensitivity
-
-        print(pitch)
-
-        if pitch > 89.0:
-            pitch = 89.0
-        if pitch < -89.0:
-            pitch = -89.0
-
-        direction_x = cos(radians(pitch)) * cos(radians(yaw))
-        direction_y = sin(radians(pitch))
-        direction_z = cos(radians(pitch)) * sin(radians(yaw))
-        camera_front = vector.normalise(np.array([direction_x, direction_y, direction_z], dtype=np.float32))
-        camera_front = Vector3(camera_front)
+        # yaw += x_offset * mouse_sensitivity
+        # pitch += -y_offset * mouse_sensitivity
+        #
+        # if pitch > 89.0:
+        #     pitch = 89.0
+        # if pitch < -89.0:
+        #     pitch = -89.0
+        #
+        # direction_x = cos(radians(pitch)) * cos(radians(yaw))
+        # direction_y = sin(radians(pitch))
+        # direction_z = cos(radians(pitch)) * sin(radians(yaw))
+        # camera_front = vector.normalise(np.array([direction_x, direction_y, direction_z], dtype=np.float32))
+        # camera_front = Vector3(camera_front)
 
         glClearColor(0.4667, 0.7373, 1., 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -281,11 +291,11 @@ def main():
         glUniformMatrix4fv(transform_location, 1, GL_FALSE, np.array(Matrix44.identity(), dtype=np.float32))
 
         # Camera
-        view_matrix = lookAt(camera_position, camera_position + camera_front)
+        # view_matrix = lookAt(camera_position, camera_position + camera_front)
 
         # MVP
         glUniformMatrix4fv(model_location, 1, GL_FALSE, model_matrix)
-        glUniformMatrix4fv(view_location, 1, GL_FALSE, view_matrix)
+        # glUniformMatrix4fv(view_location, 1, GL_FALSE, view_matrix)
         glUniformMatrix4fv(projection_location, 1, GL_FALSE, projection_matrix)
 
         for each_block in range(0, len(block_positions)):
