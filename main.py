@@ -70,21 +70,7 @@ block_positions = [
     [-1.3, 1., -1.5]
 ]
 
-# vertices = (
-#     # Vertex       Color          Texture Coords
-#     .5, .5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,  # top right
-#     .5, -.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0,  # bottom right
-#     -.5, -.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,  # bottom left
-#     -.5, .5, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0,  # top left
-# )
-#
-# indices = (
-#     0, 1, 3,  # top right triangle
-#     1, 2, 3  # bottom left triangle
-# )
-
 vertices = np.array(vertices, dtype=np.float32)
-# indices = np.array(indices, dtype=np.uint32)
 
 
 def lookAt(position, target, up=Vector3([0., 1., 0.])):
@@ -116,17 +102,17 @@ def lookAt(position, target, up=Vector3([0., 1., 0.])):
 def main():
     pygame.init()
 
-    window_width = 800
-    window_height = 800
+    window_width = 1920
+    window_height = 1080
     aspect_ratio = window_width/window_height
     fps = 60
     clock = pygame.time.Clock()
     running = True
 
-    pygame.display.set_mode([window_width, window_height], DOUBLEBUF | OPENGL | RESIZABLE)
+    pygame.display.set_mode([window_width, window_height], DOUBLEBUF | OPENGL | FULLSCREEN)
     pygame.display.set_caption("Minecraft Clone")
     window_width, window_height = pygame.display.get_surface().get_size()
-    #pygame.event.set_grab(True)
+    pygame.event.set_grab(True)
     pygame.mouse.set_visible(False)
 
     glViewport(0, 0, window_width, window_height)
@@ -134,6 +120,7 @@ def main():
 
     # Shader
     shader = shader_loader.Shader("vertex.vs", "fragment.fs")
+    shader.use()
 
     # Vertex Buffering
     vao = GLuint(0)
@@ -155,10 +142,6 @@ def main():
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * 4, ctypes.c_void_p(0))
     glEnableVertexAttribArray(0)
 
-    # Color attribute
-    # glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * 4, ctypes.c_void_p(3 * 4))
-    # glEnableVertexAttribArray(1)
-
     # Texture attribute
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * 4, ctypes.c_void_p(3 * 4))
     glEnableVertexAttribArray(2)
@@ -169,17 +152,11 @@ def main():
     # Texturing
     wood = Image.open("resources/wood.jpg")
     wood.load()
-    face = Image.open("resources/awesomeface.jpg")
-    face.load()
-
-    shader.use()
 
     wood_data = list(wood.getdata())
     wood_data = np.array(wood_data, dtype=np.uint8)
-    face_data = list(face.transpose(Image.FLIP_TOP_BOTTOM).getdata())
-    face_data = np.array(face_data, dtype=np.uint8)
 
-    wood_texture, face_texture = glGenTextures(2)
+    wood_texture = glGenTextures(1)
 
     # Wood texture
     glBindTexture(GL_TEXTURE_2D, wood_texture)
@@ -199,34 +176,6 @@ def main():
                  wood_data)
     glGenerateMipmap(GL_TEXTURE_2D)
     glBindTexture(GL_TEXTURE_2D, 0)
-
-    # Face texture
-    glBindTexture(GL_TEXTURE_2D, face_texture)
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-
-    glTexImage2D(GL_TEXTURE_2D,
-                 0,
-                 GL_RGB,
-                 face.size[0], face.size[1],
-                 0,
-                 GL_RGB,
-                 GL_UNSIGNED_BYTE,
-                 face_data)
-    glGenerateMipmap(GL_TEXTURE_2D)
-    glBindTexture(GL_TEXTURE_2D, 0)
-
-    # Building transformation matrix
-    scale = Vector3([1., 1., 1.])
-    translation1 = Vector3()
-    orientation_base = Quaternion()
-    matrix_base = Matrix44.from_scale(scale)
-
-    translation1 += [0.0, 0.0, 0.0]
-    translation1 = Matrix44.from_translation(translation1)
 
     transform_location = glGetUniformLocation(shader.shader_program, "transform")
     model_location = glGetUniformLocation(shader.shader_program, "model")
@@ -307,6 +256,8 @@ def main():
         yaw += x_offset * mouse_sensitivity
         pitch += y_offset * mouse_sensitivity
 
+        print(pitch)
+
         if pitch > 89.0:
             pitch = 89.0
         if pitch < -89.0:
@@ -321,24 +272,13 @@ def main():
         glClearColor(0.4667, 0.7373, 1., 1.0)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        # Texture units
-        glActiveTexture(GL_TEXTURE0)
+        # Texturing
         glBindTexture(GL_TEXTURE_2D, wood_texture)
         glUniform1i(glGetUniformLocation(shader.shader_program, "woodTexture"), 0)
 
         glBindVertexArray(vao)
 
-        # Transformations and drawing
-        rotation_x = Quaternion.from_x_rotation(0)
-        rotation_y = Quaternion.from_y_rotation(0)
-        rotation = rotation_x * rotation_y
-        orientation = rotation * orientation_base
-
-        matrix = matrix_base * orientation
-        matrix = matrix * translation1
-        matrix = np.array(matrix, dtype=np.float32)
-
-        glUniformMatrix4fv(transform_location, 1, GL_FALSE, matrix)
+        glUniformMatrix4fv(transform_location, 1, GL_FALSE, np.array(Matrix44.identity(), dtype=np.float32))
 
         # Camera
         view_matrix = lookAt(camera_position, camera_position + camera_front)
