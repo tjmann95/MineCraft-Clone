@@ -13,7 +13,7 @@ class Camera:
         self.camera_front = Vector3([0., 0., -1.])
         self.view_loc = view
 
-        self.sensitivity = .5
+        self.sensitivity = .4
         self.last_frame = 0
         self.last_x = width / 2
         self.last_y = height / 2
@@ -24,7 +24,7 @@ class Camera:
     def move_camera(self, direction):
         current_frame = time.get_ticks()
         delta_time = current_frame - self.last_frame
-        camera_speed = .01 * delta_time
+        camera_speed = delta_time / 20000
 
         if direction == "UP":
             self.camera_position[1] += camera_speed
@@ -32,15 +32,16 @@ class Camera:
         if direction == "DOWN":
             self.camera_position[1] -= camera_speed
             self.last_cam_y = self.camera_position[1]
-        if direction == "forward":
+        if direction == "FORWARD":
             self.camera_position += camera_speed * self.camera_front
-        if direction == "back":
+        if direction == "BACK":
             self.camera_position -= camera_speed * self.camera_front
-        if direction == "left":
+        if direction == "LEFT":
             self.camera_position -= vector.normalise(vector3.cross(np.array(self.camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
-        if direction == "right":
+        if direction == "RIGHT":
             self.camera_position += vector.normalise(vector3.cross(np.array(self.camera_front, dtype=np.float32), np.array([0., 1., 0.], dtype=np.float32))) * camera_speed
-            self.camera_position[1] = self.last_cam_y
+        self.camera_position[1] = self.last_cam_y
+
 
     def point_camera(self):
         pos = mouse.get_rel()
